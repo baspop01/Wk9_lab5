@@ -1,15 +1,25 @@
-
 import uvicorn
-from fastapi import FastAPI
+import requests
+from fastapi import FastAPI, File, UploadFile, Form, Request
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 import numpy as np
 import cv2
 import base64
+import json
 from typing import List
-
+import asyncio
 
 
 app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="static")
+
+
+
 
 class ImageRequest(BaseModel):
     image: str
@@ -34,7 +44,6 @@ def apply_canny(image):
     edges = cv2.Canny(gray, 100, 200)
     return edges
 
-
 @app.post("/process-image")
 async def process_image(image_request: ImageRequest):
     image = decode_image(image_request.image)
@@ -46,9 +55,14 @@ async def process_image(image_request: ImageRequest):
             "numbers": image_request.numbers,
             "processed_image": processed_image}
 
-
-
-
-
-
+@app.get("/")
+async def index(request: Request):
+    image_file = 'bas.png'
+    # Load the image
+    image        = cv2.imread(image_file)
+    image_string = encode_image(image)
+    image = decode_image(image_string)
+    edges = apply_canny(image)
+    processed_image = encode_image(edges)
+    return templates.TemplateResponse('index.html', {'request': request, 'processed':processed_image, 'original': image_string})
 
